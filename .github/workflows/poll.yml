@@ -1,0 +1,35 @@
+name: Poll Georgia outages
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run poller
+        run: python poll_outages.py
+
+      - name: Commit updated data (if changed)
+        run: |
+          git config user.name "georgia-outage-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/latest.json data/
+          git diff --quiet --cached || git commit -m "Update outage data"
+          git push
