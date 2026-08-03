@@ -1,256 +1,345 @@
 #!/usr/bin/env python3
 """
-Huntcliff Neighborhood Power Outage Poller (KUBRA version)
+Georgia Current — statewide power outage + weather poller
 ------------------------------------------------------------
-Meant to be run by the included GitHub Actions workflow every 15 minutes.
-Reads/writes docs/history.json so it can be committed back to the repo and
-served by GitHub Pages as a live status page.
+Runs every 15 minutes via GitHub Actions.
 
-DATA SOURCE: Georgia Power's own outage map, which is built on KUBRA's
-"Storm Center" product (the same backend many US utilities use). This gives
-genuine individual-outage locations — not county-level aggregates — which
-is what makes neighborhood-level precision possible at all.
+DATA SOURCE (corrected): the U.S. Department of Energy / Oak Ridge National
+Laboratory's ODIN (Outage Data Initiative Nationwide) real-time outage feed,
+filtered to Georgia. This is a genuinely Georgia-specific, federally-run,
+free, no-key-required source — see https://odin.ornl.gov/
 
-HOW THIS WORKS (KUBRA's map is tile-based, not a simple query API):
-  1. Hit a "currentState" endpoint to learn where this deployment's data
-     currently lives (these paths rotate over time as Georgia Power
-     publishes updates, so we look them up fresh every run rather than
-     hardcoding them).
-  2. Hit a "configuration" endpoint to find which map layer holds outage
-     clusters.
-  3. Starting from a single map tile that covers all of Huntcliff, fetch
-     that tile's outage data. If the map has grouped multiple outages
-     together into one "cluster" (because they're too close together to
-     show individually at that zoom level), we zoom in on that cluster and
-     ask again — repeating until we reach individual outages or hit the
-     map's own maximum useful zoom level (14, chosen by Georgia Power /
-     KUBRA, not by us).
-  4. Every outage found gets checked against Huntcliff's actual boundary —
-     the starting tile is intentionally a bit larger than the neighborhood,
-     so this final check keeps out anything just outside it.
+IMPORTANT SHAPE OF THIS DATA (different from a typical incident feed):
+Each row represents a UTILITY + COUNTY pairing and its currently-affected
+meter count — not a single persistent "incident" with a stable ID. The same
+physical storm can show up as a rising and falling meter count for a given
+utility/county over many polls, rather than one long-lived incident record.
+So instead of tracking "is this incident ID new," we track each utility+
+county pairing as its own gauge: it becomes "active" when affected meters
+goes from zero/absent to positive, and "resolved" when it drops back down.
 
-Credit: this technique was originally documented by Code for Kentuckiana
-(https://github.com/openkentuckiana/kubra-scraper) for the same underlying
-KUBRA product used by many utilities nationwide, including Georgia Power.
+What it does each run:
+  1. Pulls every current Georgia row from the ODIN feed (paginated).
+  2. For any utility+county pairing that just went from inactive to active,
+     looks up weather conditions and NWS alerts at that county's location,
+     anchored to the reported start time when available (falls back to
+     detection time otherwise). Only done once per newly-active pairing —
+     not every run — and all such lookups for a given run happen in
+     parallel, clustering nearby/simultaneous ones to avoid redundant calls.
+  3. Keeps a small "latest.json" (active + resolved in the last 48 hours)
+     that powers the live map — kept small on purpose so the page loads fast.
+  4. Archives every pairing's current snapshot permanently into
+     data/YYYY-MM-DD.json, split by day. This is the full benchmark
+     dataset — nothing is ever deleted from here, only from "latest.json".
+
+Data sources (all free, no account/API key required):
+  - Outages: DOE/ORNL ODIN real-time county outage feed
+  - Weather: Open-Meteo (open-meteo.com)
+  - Alerts:  National Weather Service (api.weather.gov)
 """
 
 import json
 import os
-from datetime import datetime, timezone
-
-import mercantile
-import polyline
+from datetime import datetime, timezone, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
-# Georgia Power's KUBRA Storm Center identifiers (confirmed via browser
-# devtools against https://outagemap.georgiapower.com/ — see project notes).
-INSTANCE_ID = "7b38c047-7950-444b-a25c-9b3e5ab986eb"
-VIEW_ID = "67b44af5-3847-4ca3-9f4e-9190aac343d6"
-BASE_URL = "https://kubra.io/"
+ODIN_URL = (
+    "https://openenergyhub.ornl.gov/api/explore/v2.1/catalog/datasets/"
+    "odin-real-time-outages-county/records"
+)
+PAGE_SIZE = 100          # ODS API's typical page size ceiling
+MAX_PAGES = 30           # safety cap — 3,000 GA rows would be far beyond normal
 
-# Huntcliff's bounding box (same one used for the map-review conversation).
-HUNTCLIFF_BBOX = (-84.375, 33.9746, -84.351, 34.0001)  # west, south, east, north
+REPO_ROOT = os.path.dirname(__file__)
+LATEST_PATH = os.path.join(REPO_ROOT, "docs", "latest.json")
+DATA_DIR = os.path.join(REPO_ROOT, "data")
 
-START_ZOOM = 12   # one tile fully covers Huntcliff with margin at this zoom
-MAX_ZOOM = 14      # KUBRA's own ceiling — it groups anything closer than this
+NWS_HEADERS = {"User-Agent": "GeorgiaCurrentOutageTracker (personal project)"}
 
-HISTORY_PATH = os.path.join(os.path.dirname(__file__), "docs", "history.json")
-HEADERS = {"User-Agent": "HuntcliffCurrentOutageTracker (personal project)"}
+PRUNE_AFTER_HOURS = 48       # how long a resolved pairing stays in latest.json
+TRAILING_WINDOW_HOURS = 3    # peak wind/precip window ending at onset
+SATURATION_WINDOW_HOURS = 24 * 7  # 7-day trailing precip, soil-saturation proxy
+WEATHER_WORKERS = 20         # unique location/hour weather lookups at once
 
 
-def load_history():
-    if os.path.exists(HISTORY_PATH):
-        with open(HISTORY_PATH, "r") as f:
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def to_datetime(value):
+    """Parse a date that may arrive as an ISO string or epoch-millisecond number."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value / 1000, tz=timezone.utc)
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
+
+
+def parse_ert(raw):
+    """estimatedrestorationtime arrives as a JSON-string-in-a-string, e.g.
+    '{"ert": "2026-08-04T21:30:00Z"}' — pull the actual timestamp out."""
+    if not raw:
+        return None
+    try:
+        return json.loads(raw).get("ert")
+    except (json.JSONDecodeError, AttributeError):
+        return None
+
+
+def load_json(path, default):
+    if os.path.exists(path):
+        with open(path, "r") as f:
             return json.load(f)
-    return {}
+    return default
 
 
-def save_history(history):
-    os.makedirs(os.path.dirname(HISTORY_PATH), exist_ok=True)
-    with open(HISTORY_PATH, "w") as f:
-        json.dump(history, f, indent=2, sort_keys=True)
+def save_json(path, obj):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(obj, f, indent=2, sort_keys=True)
 
 
-def _get(url):
-    resp = requests.get(url, headers=HEADERS, timeout=30)
-    resp.raise_for_status()
-    return resp
+def fetch_georgia_rows():
+    """Pull every current Georgia row from ODIN, paging through results."""
+    all_rows = []
+    offset = 0
+    pages_fetched = 0
+
+    while pages_fetched < MAX_PAGES:
+        params = {
+            "where": 'state="Georgia"',
+            "limit": PAGE_SIZE,
+            "offset": offset,
+        }
+        resp = requests.get(ODIN_URL, params=params, timeout=30, headers=NWS_HEADERS)
+        resp.raise_for_status()
+        data = resp.json()
+        rows = data.get("results", [])
+        pages_fetched += 1
+        all_rows.extend(rows)
+
+        total_count = data.get("total_count", len(all_rows))
+        if len(all_rows) >= total_count or not rows:
+            break
+        offset += PAGE_SIZE
+
+    if pages_fetched >= MAX_PAGES:
+        print(f"  (hit the {MAX_PAGES}-page safety cap — stopping; "
+              f"this should not normally happen)")
+
+    return all_rows
 
 
-def get_deployment_info():
-    """Look up where this deployment's live data currently lives."""
-    state_url = (
-        f"{BASE_URL}stormcenter/api/v1/stormcenters/{INSTANCE_ID}/"
-        f"views/{VIEW_ID}/currentState?preview=false"
-    )
-    state = _get(state_url).json()
-    return {
-        "data_path": state["data"]["interval_generation_data"],
-        "cluster_data_path": state["data"]["cluster_interval_generation_data"],
-        "deployment_id": state["stormcenterDeploymentId"],
+def weather_cache_key(lat, lon, onset_dt):
+    """Round location to ~0.1 degree (~7 miles) and time to the nearest hour,
+    so simultaneous nearby pairings share one weather lookup instead of each
+    making a separate call."""
+    return (round(lat, 1), round(lon, 1), onset_dt.replace(minute=0, second=0, microsecond=0).isoformat())
+
+
+def fetch_weather_and_alerts(lat, lon, onset_dt):
+    """
+    Weather + active NWS alerts near a point, captured once per newly-active
+    utility/county pairing. We pull a trailing window of hourly data ending
+    at the reported (or detected) start time and report PEAK gust and TOTAL
+    precipitation in that window, rather than a single "current" snapshot —
+    a storm can pass through in under an hour, so "current" conditions at
+    detection time can look deceptively calm. We also compute a 7-day
+    trailing precipitation total as a rough soil-saturation proxy: the same
+    wind gust is a very different outage risk on saturated vs. dry ground.
+    """
+    weather = {
+        "tempF": None,
+        "windGustMph": None, "windGustPeakWindowHrs": TRAILING_WINDOW_HOURS,
+        "precipIn": None,
+        "precip7dIn": None, "precip7dWindowHrs": SATURATION_WINDOW_HOURS,
+        "alerts": [],
     }
 
+    try:
+        om = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat, "longitude": lon,
+                "hourly": "temperature_2m,precipitation,wind_gusts_10m",
+                "past_days": 7,
+                "forecast_days": 1,
+                "temperature_unit": "fahrenheit",
+                "wind_speed_unit": "mph",
+                "precipitation_unit": "inch",
+                "timezone": "UTC",
+            },
+            timeout=15,
+        ).json()
+        hourly = om.get("hourly", {})
+        times = hourly.get("time", [])
+        gusts = hourly.get("wind_gusts_10m", [])
+        precip = hourly.get("precipitation", [])
+        temps = hourly.get("temperature_2m", [])
 
-def get_cluster_layer_name(deployment_id):
-    """Find which map layer holds outage clusters."""
-    config_url = (
-        f"{BASE_URL}stormcenter/api/v1/stormcenters/{INSTANCE_ID}/"
-        f"views/{VIEW_ID}/configuration/{deployment_id}?preview=false"
-    )
-    config = _get(config_url).json()
-    interval_data = config["config"]["layers"]["data"]["interval_generation_data"]
-    cluster_layers = [l for l in interval_data if l["type"].startswith("CLUSTER_LAYER")]
-    if not cluster_layers:
-        raise RuntimeError("No cluster layer found in KUBRA configuration")
-    return cluster_layers[0]["id"]
+        if times and onset_dt is not None:
+            onset_idx = min(
+                range(len(times)),
+                key=lambda i: abs(datetime.fromisoformat(times[i] + "+00:00") - onset_dt),
+            )
 
+            short_start = max(0, onset_idx - TRAILING_WINDOW_HOURS)
+            window_gusts = [g for g in gusts[short_start:onset_idx + 1] if g is not None]
+            window_precip = [p for p in precip[short_start:onset_idx + 1] if p is not None]
+            weather["windGustMph"] = max(window_gusts) if window_gusts else None
+            weather["precipIn"] = round(sum(window_precip), 3) if window_precip else None
+            weather["tempF"] = temps[onset_idx] if onset_idx < len(temps) else None
 
-def quadkey_tile_url(cluster_data_path, layer_name, quadkey):
-    data_path = cluster_data_path.format(qkh=quadkey[-3:][::-1])
-    return f"{BASE_URL}{data_path}/public/{layer_name}/{quadkey}.json"
+            sat_start = max(0, onset_idx - SATURATION_WINDOW_HOURS)
+            window_precip_7d = [p for p in precip[sat_start:onset_idx + 1] if p is not None]
+            weather["precip7dIn"] = round(sum(window_precip_7d), 2) if window_precip_7d else None
+    except Exception as e:
+        print(f"  (weather lookup failed: {e})")
 
+    try:
+        nws = requests.get(
+            "https://api.weather.gov/alerts/active",
+            params={"point": f"{lat},{lon}"},
+            headers=NWS_HEADERS,
+            timeout=15,
+        ).json()
+        weather["alerts"] = [feat["properties"]["event"] for feat in nws.get("features", [])]
+    except Exception as e:
+        print(f"  (alerts lookup failed: {e})")
+        # Reflects alerts active at DETECTION time, not necessarily true
+        # onset — NWS has no simple free "historical alerts at a point in
+        # time" endpoint, so treat this as a reasonable-but-imperfect proxy.
 
-def point_in_bbox(lat, lon, bbox):
-    west, south, east, north = bbox
-    return south <= lat <= north and west <= lon <= east
-
-
-MAX_TILE_REQUESTS = 500  # safety cap — Huntcliff is tiny, this is far more than needed
-
-
-def fetch_huntcliff_outages(cluster_data_path, layer_name):
-    """
-    Walk the KUBRA tile tree starting from Huntcliff's covering tile,
-    zooming into clusters as needed, and return every individual outage
-    found — filtered to those actually within Huntcliff's boundary.
-    """
-    outages = {}
-    already_seen = set()
-
-    start_tiles = list(mercantile.tiles(*HUNTCLIFF_BBOX, zooms=[START_ZOOM]))
-    quadkeys = [mercantile.quadkey(t) for t in start_tiles]
-
-    _walk_tiles(quadkeys, already_seen, cluster_data_path, layer_name, outages, zoom=START_ZOOM)
-
-    if len(already_seen) >= MAX_TILE_REQUESTS:
-        print(f"  (hit the {MAX_TILE_REQUESTS}-tile safety cap — stopping; "
-              f"this should not normally happen for an area this small)")
-
-    return outages
-
-
-def _walk_tiles(quadkeys, already_seen, cluster_data_path, layer_name, outages, zoom):
-    for qk in quadkeys:
-        if len(already_seen) >= MAX_TILE_REQUESTS:
-            return
-
-        url = quadkey_tile_url(cluster_data_path, layer_name, qk)
-        if url in already_seen:
-            continue
-        already_seen.add(url)
-
-        try:
-            resp = requests.get(url, headers=HEADERS, timeout=20)
-        except requests.RequestException:
-            continue
-        if not resp.ok:
-            continue  # no file = no outages in this tile, which is normal
-
-        for item in resp.json().get("file_data", []):
-            desc = item["desc"]
-            point = polyline.decode(item["geom"]["p"][0])[0]
-            lat, lon = point[0], point[1]
-
-            if desc.get("cluster"):
-                next_zoom = zoom + 1
-                if next_zoom > MAX_ZOOM:
-                    continue  # can't resolve any further, KUBRA's own limit
-                child_tile = mercantile.tile(lng=lon, lat=lat, zoom=next_zoom)
-                child_qk = mercantile.quadkey(child_tile)
-                _walk_tiles([child_qk], already_seen, cluster_data_path, layer_name,
-                            outages, next_zoom)
-            else:
-                if not point_in_bbox(lat, lon, HUNTCLIFF_BBOX):
-                    continue  # just outside the neighborhood, skip
-
-                outage_id = desc.get("inc_id") or f"{item['geom']['p'][0]}-{desc.get('start_time')}"
-                outages[outage_id] = {
-                    "id": outage_id,
-                    "cause": (desc.get("cause") or {}).get("EN-US") if desc.get("cause") else None,
-                    "customers": desc.get("cust_a", {}).get("val") if desc.get("cust_a") else desc.get("n_out"),
-                    "startTime": desc.get("start_time"),
-                    "etr": desc.get("etr"),
-                    "crewStatus": desc.get("crew_status"),
-                    "lat": lat,
-                    "lon": lon,
-                }
-
-                # A resolved individual outage might still have unresolved
-                # neighbors nearby that weren't in this same tile — check
-                # around it once, same as the reference implementation.
-                neighbor_qks = _neighboring_quadkeys(qk)
-                _walk_tiles(neighbor_qks, already_seen, cluster_data_path, layer_name,
-                            outages, zoom)
+    return weather
 
 
-def _neighboring_quadkeys(quadkey):
-    tile = mercantile.quadkey_to_tile(quadkey)
-    offsets = [(0, -1), (1, 0), (0, 1), (-1, 0), (1, -1), (1, 1), (-1, -1), (-1, 1)]
-    return [
-        mercantile.quadkey(mercantile.Tile(x=tile.x + dx, y=tile.y + dy, z=tile.z))
-        for dx, dy in offsets
-    ]
+def archive(rec):
+    """Permanently store this pairing's current snapshot under its start date."""
+    date = (rec.get("firstSeen") or now_iso())[:10]
+    path = os.path.join(DATA_DIR, f"{date}.json")
+    day = load_json(path, {})
+    day[rec["id"]] = rec
+    save_json(path, day)
 
 
 def main():
-    history = load_history()
-    history.pop("_lastChecked", None)
-    now = datetime.now(timezone.utc).isoformat()
-    seen_ids = set()
+    latest = load_json(LATEST_PATH, {})
+    latest.pop("_lastChecked", None)  # strip marker before treating entries as records
+    now = now_iso()
 
     try:
-        info = get_deployment_info()
-        layer_name = get_cluster_layer_name(info["deployment_id"])
-        outages = fetch_huntcliff_outages(info["cluster_data_path"], layer_name)
+        rows = fetch_georgia_rows()
     except requests.RequestException as e:
         print(f"Fetch failed: {e}")
         return
-    except (KeyError, RuntimeError) as e:
-        print(f"Unexpected response shape from KUBRA — Georgia Power may have "
-              f"changed something on their end: {e}")
-        return
 
-    for outage_id, o in outages.items():
-        seen_ids.add(outage_id)
-        existing = history.get(outage_id, {})
-        history[outage_id] = {
-            "id": outage_id,
-            "utility": "Georgia Power",
-            "startDate": o["startTime"] or existing.get("startDate") or now,
-            "estRestore": o["etr"],
-            "cause": o["cause"] or existing.get("cause") or "Unknown",
-            "customers": o["customers"],
-            "county": "Fulton",  # Huntcliff sits in Fulton County
-            "outageType": o["crewStatus"] or "",
-            "lat": o["lat"],
-            "lon": o["lon"],
-            "firstSeen": existing.get("firstSeen") or now,
+    print(f"Fetched {len(rows)} Georgia row(s) from ODIN")
+
+    seen_ids = set()
+    needs_weather = {}  # key -> (lat, lon, onset_dt)
+
+    for row in rows:
+        utility_id = row.get("utility_id") or "unknown"
+        county_fips = row.get("communitydescriptor") or "unknown"
+        pairing_id = f"{utility_id}:{county_fips}"
+        meters = row.get("metersaffected") or 0
+
+        if meters <= 0:
+            continue  # not currently active for this utility/county
+
+        seen_ids.add(pairing_id)
+        existing = latest.get(pairing_id)
+        was_inactive = existing is None or existing.get("status") != "Active"
+
+        centroid = row.get("centroid") or row.get("geo_point_2d") or {}
+        lat, lon = centroid.get("lat"), centroid.get("lon")
+
+        onset_raw = row.get("reportedstarttime")
+        onset_dt = to_datetime(onset_raw)
+
+        if was_inactive and lat is not None and lon is not None:
+            needs_weather[pairing_id] = (lat, lon, onset_dt or datetime.now(timezone.utc))
+
+        latest[pairing_id] = {
+            "id": pairing_id,
+            "utility": (row.get("name") or "").split(",")[0].strip() or "Unknown utility",
+            "county": row.get("county") or "",
+            "countyFips": county_fips,
+            "cause": row.get("cause") or (existing or {}).get("cause") or "Unknown",
+            "outageType": row.get("statuskind") or "",
+            "customers": meters,
+            "startDate": onset_raw or (existing or {}).get("startDate") or now,
+            "estRestore": parse_ert(row.get("estimatedrestorationtime")),
+            "lat": lat if lat is not None else (existing or {}).get("lat"),
+            "lon": lon if lon is not None else (existing or {}).get("lon"),
+            "firstSeen": (existing or {}).get("firstSeen") if not was_inactive else now,
             "lastSeen": now,
             "status": "Active",
             "resolvedAt": None,
+            "weather": (existing or {}).get("weather") if not was_inactive else None,
         }
-        if outage_id not in existing:
-            print(f"[NEW OUTAGE] {outage_id} — {o['cause']}, {o['customers']} customers")
+        if not latest[pairing_id]["firstSeen"]:
+            latest[pairing_id]["firstSeen"] = now
 
-    for outage_id, rec in history.items():
-        if rec.get("status") == "Active" and outage_id not in seen_ids:
+    if needs_weather:
+        key_to_ids = {}
+        key_to_args = {}
+        for pairing_id, (lat, lon, onset_dt) in needs_weather.items():
+            key = weather_cache_key(lat, lon, onset_dt)
+            key_to_ids.setdefault(key, []).append(pairing_id)
+            key_to_args.setdefault(key, (lat, lon, onset_dt))
+
+        print(f"{len(needs_weather)} newly-active pairing(s) → {len(key_to_args)} unique "
+              f"location/hour lookups needed, {WEATHER_WORKERS} at a time...")
+
+        with ThreadPoolExecutor(max_workers=WEATHER_WORKERS) as pool:
+            future_to_key = {
+                pool.submit(fetch_weather_and_alerts, lat, lon, onset_dt): key
+                for key, (lat, lon, onset_dt) in key_to_args.items()
+            }
+            done_count = 0
+            for future in as_completed(future_to_key):
+                key = future_to_key[future]
+                try:
+                    weather = future.result()
+                except Exception as e:
+                    print(f"  (weather lookup failed for cluster {key}: {e})")
+                    weather = None
+                for pairing_id in key_to_ids[key]:
+                    latest[pairing_id]["weather"] = weather
+                done_count += 1
+                if done_count % 25 == 0:
+                    print(f"  ...{done_count}/{len(key_to_args)} lookups done")
+
+    for pairing_id, rec in latest.items():
+        if rec["status"] == "Active" and pairing_id not in seen_ids:
             rec["status"] = "Restored"
             rec["resolvedAt"] = now
-            print(f"[RESTORED] {outage_id}")
+            print(f"[RESOLVED] {pairing_id}")
 
-    history["_lastChecked"] = now
-    save_history(history)
-    print(f"{now} — {len(outages)} outage(s) currently active in Huntcliff")
+    for rec in latest.values():
+        archive(rec)
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=PRUNE_AFTER_HOURS)
+    to_remove = [
+        rid for rid, rec in latest.items()
+        if rec["status"] == "Restored" and rec["resolvedAt"]
+        and datetime.fromisoformat(rec["resolvedAt"]) < cutoff
+    ]
+    for rid in to_remove:
+        del latest[rid]
+
+    latest["_lastChecked"] = now
+    save_json(LATEST_PATH, latest)
+
+    active_count = sum(1 for r in latest.values() if isinstance(r, dict) and r.get("status") == "Active")
+    print(f"{now} — {active_count} active pairing(s) in Georgia, {len(needs_weather)} newly active this run")
 
 
 if __name__ == "__main__":
