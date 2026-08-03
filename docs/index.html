@@ -79,7 +79,7 @@
   <div class="crumb"><a href="https://gwgfree.github.io/huntcliff-outages/">← Huntcliff Current</a></div>
 
   <header>
-    <div class="eyebrow"><span class="pulse" id="pulseDot"></span> Georgia · statewide</div>
+    <div class="eyebrow"><span class="pulse" id="pulseDot"></span> Georgia Power service territory</div>
     <h1>Georgia Current</h1>
     <p class="sub">Live, map-based power outage tracking for Georgia, with wind, precipitation, temperature, and active weather alerts captured at the moment each outage starts. Updated automatically every 15 minutes.</p>
   </header>
@@ -119,7 +119,7 @@
   </section>
 
   <footer>
-    Source: Georgia's public outage feed (GEMA / PowerOutage.US). Weather from Open-Meteo, alerts from the National Weather Service — both captured once, at the moment each outage was first detected.<br><br>
+    Source: Georgia Power's own outage map (built on KUBRA's Storm Center product). Covers Georgia Power's service territory — the majority of the state's population, though electric cooperatives and municipal utilities aren't included. Weather from Open-Meteo, alerts from the National Weather Service, county from the FCC's Census Area API — all captured once, when each outage was first seen.<br><br>
     This page only shows active outages and the last 48 hours for speed. The <strong>full history, going back to when this tracker started, lives permanently in the <code>data/</code> folder</strong> of this repository — one file per day, downloadable directly from GitHub, no tools required. That's your benchmark dataset.
   </footer>
 </div>
@@ -184,7 +184,7 @@ function render(data){
   if(active.length===0){
     pulseDot.classList.remove("alert"); statusCard.classList.remove("alert");
     statusHeadline.className="headline ok";
-    statusHeadline.textContent="All clear — no active outages statewide";
+    statusHeadline.textContent="All clear — no active outages";
   }else{
     pulseDot.classList.add("alert"); statusCard.classList.add("alert");
     statusHeadline.className="headline alert";
@@ -236,7 +236,7 @@ function render(data){
   const countyRows = Object.entries(byCounty).sort((a,b)=>b[1].customers-a[1].customers);
   document.getElementById("countyCount").textContent = countyRows.length?`(${countyRows.length})`:"";
   document.getElementById("countyWrap").innerHTML = countyRows.length===0
-    ? '<div class="empty">No active outages statewide right now.</div>'
+    ? '<div class="empty">No active outages right now.</div>'
     : `<table class="county-table"><thead><tr><th>County</th><th>Outages</th><th>Customers</th></tr></thead><tbody>
         ${countyRows.map(([c,v])=>`<tr><td>${escapeHtml(c)}</td><td>${v.count}</td><td>${v.customers.toLocaleString()}</td></tr>`).join("")}
       </tbody></table>`;
