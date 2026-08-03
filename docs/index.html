@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Georgia Current</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+  :root{
+    --bg:#121822;--panel:#1a2330;--panel-2:#212c3b;--hairline:#2b3646;
+    --text:#edeef1;--muted:#8b96a5;--amber:#e8a33d;--amber-dim:#4a3a22;
+    --teal:#4c9a82;--teal-dim:#1e3630;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:radial-gradient(ellipse 900px 500px at 15% -10%, #1c2836 0%, transparent 60%),var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;padding:32px 20px 80px;}
+  .wrap{max-width:920px;margin:0 auto;}
+  .river{width:100%;height:28px;margin:0 0 20px;opacity:0.55;}
+  .river path{fill:none;stroke:var(--teal);stroke-width:1.5;stroke-linecap:round;}
+  .crumb{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);margin-bottom:18px;}
+  .crumb a{color:var(--muted);}
+  header{margin-bottom:28px;}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:pulse 2.4s infinite;}
+  .pulse.alert{background:var(--amber);}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(76,154,130,0.5);}70%{box-shadow:0 0 0 8px rgba(76,154,130,0);}100%{box-shadow:0 0 0 0 rgba(76,154,130,0);}}
+  h1{font-family:'Fraunces',serif;font-weight:600;font-size:40px;letter-spacing:-0.01em;margin:0 0 6px;}
+  .sub{color:var(--muted);font-size:14.5px;line-height:1.5;max-width:600px;}
+  .status-card{background:var(--panel);border:1px solid var(--hairline);border-radius:14px;padding:26px;margin:26px 0 20px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+  .status-card.alert{border-color:#5a4a2c;background:linear-gradient(180deg,var(--panel),#241d14);}
+  .status-text .label{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .status-text .headline{font-family:'Fraunces',serif;font-size:26px;font-weight:500;}
+  .headline.alert{color:var(--amber);}
+  .headline.ok{color:var(--teal);}
+  .last-checked{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-align:right;}
+  button{font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;border:1px solid var(--hairline);background:var(--panel-2);color:var(--text);padding:10px 18px;border-radius:9px;cursor:pointer;}
+  button:hover{border-color:#3d4c60;background:#26313f;}
+  .controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .auto-note{font-size:12.5px;color:var(--muted);}
+
+  .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0 30px;}
+  .stat{background:var(--panel);border:1px solid var(--hairline);border-radius:12px;padding:16px 18px;}
+  .stat .n{font-family:'Fraunces',serif;font-size:26px;font-weight:600;}
+  .stat .l{font-family:'JetBrains Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-top:4px;}
+
+  #map{height:440px;border-radius:14px;border:1px solid var(--hairline);margin-bottom:8px;}
+  .map-note{font-size:12px;color:var(--muted);margin-bottom:36px;}
+
+  section{margin-top:36px;}
+  h2{font-family:'Fraunces',serif;font-weight:500;font-size:19px;margin:0 0 14px;display:flex;align-items:baseline;gap:10px;}
+  h2 .count{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);font-weight:400;}
+
+  .county-table, .history-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .county-table th, .history-table th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:0 10px 10px 0;border-bottom:1px solid var(--hairline);}
+  .county-table td, .history-table td{padding:11px 10px 11px 0;border-bottom:1px solid var(--hairline);vertical-align:top;}
+  .county-table tr:last-child td, .history-table tr:last-child td{border-bottom:none;}
+  .tag{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10.5px;padding:2px 7px;border-radius:5px;}
+  .tag.restored{background:var(--teal-dim);color:var(--teal);}
+  .tag.active{background:var(--amber-dim);color:var(--amber);}
+  .empty{color:var(--muted);font-size:13.5px;padding:20px 0;}
+  .error-banner{background:#2a1c1a;border:1px solid #4a2e2a;color:#e39a8f;padding:12px 16px;border-radius:9px;font-size:13px;margin-bottom:16px;}
+
+  .leaflet-popup-content-wrapper{background:var(--panel);color:var(--text);border-radius:10px;}
+  .leaflet-popup-tip{background:var(--panel);}
+  .popup{font-family:'Inter',sans-serif;font-size:13px;}
+  .popup .cause{font-weight:600;margin-bottom:4px;}
+  .popup .meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);line-height:1.6;}
+
+  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--hairline);font-size:12px;color:var(--muted);line-height:1.7;}
+  footer a{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <svg class="river" viewBox="0 0 920 28" preserveAspectRatio="none">
+    <path d="M0,14 C70,4 140,24 210,14 C280,4 350,24 420,14 C490,4 560,24 630,14 C700,4 770,24 840,14 L920,14" />
+  </svg>
+
+  <div class="crumb"><a href="https://gwgfree.github.io/huntcliff-outages/">← Huntcliff Current</a></div>
+
+  <header>
+    <div class="eyebrow"><span class="pulse" id="pulseDot"></span> Georgia · statewide</div>
+    <h1>Georgia Current</h1>
+    <p class="sub">Live, map-based power outage tracking for Georgia, with wind, precipitation, temperature, and active weather alerts captured at the moment each outage starts. Updated automatically every 15 minutes.</p>
+  </header>
+
+  <div class="controls">
+    <span class="auto-note">Updated by a scheduled job — refresh this page anytime to see the latest</span>
+    <button id="refreshBtn">Refresh</button>
+  </div>
+
+  <div id="errorBanner"></div>
+
+  <div class="status-card" id="statusCard">
+    <div class="status-text">
+      <div class="label">Current status</div>
+      <div class="headline ok" id="statusHeadline">Loading…</div>
+    </div>
+    <div class="last-checked" id="lastChecked">—</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><div class="n" id="statActive">—</div><div class="l">Active outages</div></div>
+    <div class="stat"><div class="n" id="statCustomers">—</div><div class="l">Customers affected</div></div>
+    <div class="stat"><div class="n" id="statCounties">—</div><div class="l">Counties affected</div></div>
+  </div>
+
+  <div id="map"></div>
+  <p class="map-note">Amber = active outage · Teal = resolved in the last 48 hours · size = customers affected. Click a dot for cause, county, and the weather conditions recorded when it started.</p>
+
+  <section>
+    <h2>Counties affected <span class="count" id="countyCount"></span></h2>
+    <div id="countyWrap"></div>
+  </section>
+
+  <section>
+    <h2>Recent activity <span class="count" id="historyCount"></span></h2>
+    <div id="historyWrap"></div>
+  </section>
+
+  <footer>
+    Source: Georgia's public outage feed (GEMA / PowerOutage.US). Weather from Open-Meteo, alerts from the National Weather Service — both captured once, at the moment each outage was first detected.<br><br>
+    This page only shows active outages and the last 48 hours for speed. The <strong>full history, going back to when this tracker started, lives permanently in the <code>data/</code> folder</strong> of this repository — one file per day, downloadable directly from GitHub, no tools required. That's your benchmark dataset.
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+function fmtDate(v){
+  if(!v) return "—";
+  const d = new Date(v);
+  if(isNaN(d.getTime())) return String(v);
+  return d.toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+}
+function relTime(iso){
+  if(!iso) return "unknown";
+  const mins = Math.round((Date.now()-new Date(iso).getTime())/60000);
+  if(mins<1) return "just now";
+  if(mins<60) return mins+"m ago";
+  const hrs = Math.round(mins/60);
+  if(hrs<24) return hrs+"h ago";
+  return Math.round(hrs/24)+"d ago";
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+let map, markerLayer;
+
+function initMap(){
+  map = L.map('map', {scrollWheelZoom:false}).setView([32.75, -83.4], 7); // Georgia center
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+}
+
+async function load(){
+  const errEl = document.getElementById("errorBanner");
+  try{
+    const resp = await fetch("latest.json?t="+Date.now());
+    if(!resp.ok) throw new Error("HTTP "+resp.status);
+    const data = await resp.json();
+    errEl.innerHTML = "";
+    render(data);
+  }catch(e){
+    errEl.innerHTML = '<div class="error-banner">Couldn\'t load latest.json yet — it appears after the first scheduled run (or run the workflow manually from the Actions tab).</div>';
+  }
+}
+
+function render(data){
+  const lastChecked = data._lastChecked;
+  const all = Object.values(data).filter(r => r && typeof r === "object" && r.id)
+    .sort((a,b)=> new Date(b.firstSeen) - new Date(a.firstSeen));
+  const active = all.filter(r=>r.status==="Active");
+
+  document.getElementById("lastChecked").textContent = lastChecked ? "Checked "+relTime(lastChecked) : "—";
+
+  const pulseDot = document.getElementById("pulseDot");
+  const statusCard = document.getElementById("statusCard");
+  const statusHeadline = document.getElementById("statusHeadline");
+  const custTotal = active.reduce((s,r)=>s+(r.customers||0),0);
+  const counties = new Set(active.map(r=>r.county).filter(Boolean));
+
+  if(active.length===0){
+    pulseDot.classList.remove("alert"); statusCard.classList.remove("alert");
+    statusHeadline.className="headline ok";
+    statusHeadline.textContent="All clear — no active outages statewide";
+  }else{
+    pulseDot.classList.add("alert"); statusCard.classList.add("alert");
+    statusHeadline.className="headline alert";
+    statusHeadline.textContent = active.length+" active outage"+(active.length>1?"s":"")+" across "+counties.size+" count"+(counties.size===1?"y":"ies");
+  }
+
+  document.getElementById("statActive").textContent = active.length;
+  document.getElementById("statCustomers").textContent = custTotal.toLocaleString();
+  document.getElementById("statCounties").textContent = counties.size;
+
+  // Map
+  markerLayer.clearLayers();
+  all.forEach(r=>{
+    if(r.lat==null || r.lon==null) return;
+    const isActive = r.status==="Active";
+    const radius = Math.max(5, Math.min(22, Math.sqrt(r.customers||1)*1.3));
+    const marker = L.circleMarker([r.lat, r.lon], {
+      radius, color: isActive ? "#e8a33d" : "#4c9a82",
+      fillColor: isActive ? "#e8a33d" : "#4c9a82",
+      fillOpacity: isActive ? 0.75 : 0.35, weight: 1.5
+    });
+    const w = r.weather || {};
+    const alertsStr = (w.alerts && w.alerts.length) ? w.alerts.join(", ") : "None active";
+    marker.bindPopup(`
+      <div class="popup">
+        <div class="cause">${escapeHtml(r.cause)} — ${escapeHtml(r.county)} County</div>
+        <div class="meta">
+          Status: ${r.status} · ${r.customers!=null?r.customers+" customers":"— customers"}<br>
+          Started ${fmtDate(r.firstSeen)}<br>
+          Wind gust: ${w.windGustMph!=null?Math.round(w.windGustMph)+" mph":"—"} ·
+          Precip (3h): ${w.precipIn!=null?w.precipIn+" in":"—"} ·
+          Temp: ${w.tempF!=null?Math.round(w.tempF)+"°F":"—"}<br>
+          Precip (7d, ground saturation): ${w.precip7dIn!=null?w.precip7dIn+" in":"—"}<br>
+          Alerts at start: ${escapeHtml(alertsStr)}
+        </div>
+      </div>
+    `);
+    markerLayer.addLayer(marker);
+  });
+
+  // Counties table
+  const byCounty = {};
+  active.forEach(r=>{
+    const c = r.county || "Unknown";
+    byCounty[c] = byCounty[c] || {count:0, customers:0};
+    byCounty[c].count++;
+    byCounty[c].customers += (r.customers||0);
+  });
+  const countyRows = Object.entries(byCounty).sort((a,b)=>b[1].customers-a[1].customers);
+  document.getElementById("countyCount").textContent = countyRows.length?`(${countyRows.length})`:"";
+  document.getElementById("countyWrap").innerHTML = countyRows.length===0
+    ? '<div class="empty">No active outages statewide right now.</div>'
+    : `<table class="county-table"><thead><tr><th>County</th><th>Outages</th><th>Customers</th></tr></thead><tbody>
+        ${countyRows.map(([c,v])=>`<tr><td>${escapeHtml(c)}</td><td>${v.count}</td><td>${v.customers.toLocaleString()}</td></tr>`).join("")}
+      </tbody></table>`;
+
+  // Recent activity table (most recent 40)
+  const recent = all.slice(0,40);
+  document.getElementById("historyCount").textContent = all.length?`(${all.length} shown of recent)`:"";
+  document.getElementById("historyWrap").innerHTML = recent.length===0
+    ? '<div class="empty">No recent outages recorded yet.</div>'
+    : `<table class="history-table"><thead><tr><th>Started</th><th>County</th><th>Cause</th><th>Customers</th><th>Wind gust</th><th>Status</th></tr></thead><tbody>
+        ${recent.map(r=>`<tr><td>${fmtDate(r.firstSeen)}</td><td>${escapeHtml(r.county)}</td><td>${escapeHtml(r.cause)}</td><td>${r.customers!=null?r.customers:"—"}</td><td>${r.weather&&r.weather.windGustMph!=null?Math.round(r.weather.windGustMph)+" mph":"—"}</td><td><span class="tag ${r.status==="Active"?"active":"restored"}">${r.status.toUpperCase()}</span></td></tr>`).join("")}
+      </tbody></table>`;
+}
+
+document.getElementById("refreshBtn").addEventListener("click", load);
+initMap();
+load();
+</script>
+</body>
+</html>
