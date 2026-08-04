@@ -246,8 +246,11 @@ function render(data){
   document.getElementById("historyCount").textContent = all.length?`(${all.length} shown of recent)`:"";
   document.getElementById("historyWrap").innerHTML = recent.length===0
     ? '<div class="empty">No recent outages recorded yet.</div>'
-    : `<table class="history-table"><thead><tr><th>Started</th><th>County</th><th>Cause</th><th>Customers</th><th>Wind gust</th><th>Status</th></tr></thead><tbody>
-        ${recent.map(r=>`<tr><td>${fmtDate(r.firstSeen)}</td><td>${escapeHtml(r.county)}</td><td>${escapeHtml(r.cause)}</td><td>${r.customers!=null?r.customers:"—"}</td><td>${r.weather&&r.weather.windGustMph!=null?Math.round(r.weather.windGustMph)+" mph":"—"}</td><td><span class="tag ${r.status==="Active"?"active":"restored"}">${r.status.toUpperCase()}</span></td></tr>`).join("")}
+    : `<table class="history-table"><thead><tr><th>Started</th><th>County</th><th>Cause</th><th>Customers</th><th>Wind gust</th><th>Precip (3h)</th><th>Temp</th><th>Status</th></tr></thead><tbody>
+        ${recent.map(r=>{
+          const w = r.weather || {};
+          return `<tr><td>${fmtDate(r.firstSeen)}</td><td>${escapeHtml(r.county)}</td><td>${escapeHtml(r.cause)}</td><td>${r.customers!=null?r.customers:"—"}</td><td>${w.windGustMph!=null?Math.round(w.windGustMph)+" mph":"—"}</td><td>${w.precipIn!=null?w.precipIn+" in":"—"}</td><td>${w.tempF!=null?Math.round(w.tempF)+"°F":"—"}</td><td><span class="tag ${r.status==="Active"?"active":"restored"}">${r.status.toUpperCase()}</span></td></tr>`;
+        }).join("")}
       </tbody></table>`;
 }
 
