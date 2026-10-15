@@ -10,9 +10,9 @@
     "lat": 33.76384,
     "lon": -84.44194,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [
@@ -37,9 +37,9 @@
     "lat": 34.22016,
     "lon": -85.23083,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [],
@@ -62,9 +62,9 @@
     "lat": 32.05121,
     "lon": -84.79992,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [],
@@ -87,9 +87,9 @@
     "lat": 33.89297,
     "lon": -84.20788,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [
@@ -114,9 +114,9 @@
     "lat": 33.46547,
     "lon": -82.15616,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [],
@@ -125,6 +125,31 @@
       "precipIn": 0.0,
       "tempF": 75.3,
       "windGustMph": 11.4,
+      "windGustPeakWindowHrs": 3
+    }
+  },
+  "ekpqE~th_O-None": {
+    "cause": "Unknown",
+    "county": "Lumpkin County",
+    "customers": 4,
+    "estRestore": "2026-10-15T05:45:00Z",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "ekpqE~th_O-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 34.49539,
+    "lon": -83.93568,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [],
+      "precip7dIn": 0.73,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 64.5,
+      "windGustMph": 6.5,
       "windGustPeakWindowHrs": 3
     }
   },
@@ -139,9 +164,9 @@
     "lat": 34.09124,
     "lon": -84.02794,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [
@@ -152,6 +177,56 @@
       "precipIn": 0.0,
       "tempF": 75.4,
       "windGustMph": 7.6,
+      "windGustPeakWindowHrs": 3
+    }
+  },
+  "ij}qEtkw~N-None": {
+    "cause": "Unknown",
+    "county": "White County",
+    "customers": 8,
+    "estRestore": "2026-10-15T10:15:00Z",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "ij}qEtkw~N-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 34.56181,
+    "lon": -83.84715,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [],
+      "precip7dIn": 1.25,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 64.4,
+      "windGustMph": 5.4,
+      "windGustPeakWindowHrs": 3
+    }
+  },
+  "iva|D|gx{N-None": {
+    "cause": "Unknown",
+    "county": "Lowndes County",
+    "customers": 79,
+    "estRestore": "2026-10-15T11:00:00Z",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "iva|D|gx{N-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 30.97973,
+    "lon": -83.36015,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [],
+      "precip7dIn": 1.71,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 67.8,
+      "windGustMph": 4.9,
       "windGustPeakWindowHrs": 3
     }
   },
@@ -166,9 +241,9 @@
     "lat": 33.72454,
     "lon": -84.36545,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [
@@ -193,9 +268,9 @@
     "lat": 34.01959,
     "lon": -84.13499,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [
@@ -220,9 +295,9 @@
     "lat": 33.46936,
     "lon": -82.01446,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [],
@@ -238,10 +313,10 @@
     "cause": "Unknown",
     "county": "Muscogee County",
     "customers": 4,
-    "estRestore": "2026-10-15T03:00:00Z",
+    "estRestore": "ETR-NULL",
     "firstSeen": "2026-10-15T00:38:54.981301+00:00",
     "id": "qn{dEn}leO-None",
-    "lastSeen": "2026-10-15T00:38:54.981301+00:00",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
     "lat": 32.42233,
     "lon": -84.94056,
     "outageType": "",
@@ -259,6 +334,81 @@
       "windGustPeakWindowHrs": 3
     }
   },
+  "sejcEheyoN-None": {
+    "cause": "Unknown",
+    "county": "Effingham County",
+    "customers": 4,
+    "estRestore": "2026-10-15T13:00:00Z",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "sejcEheyoN-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 32.17002,
+    "lon": -81.39877,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [],
+      "precip7dIn": 2.63,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 69.3,
+      "windGustMph": 8.3,
+      "windGustPeakWindowHrs": 3
+    }
+  },
+  "sjrjExnjsN-None": {
+    "cause": "Unknown",
+    "county": "Richmond County",
+    "customers": 4,
+    "estRestore": "2026-10-15T08:00:00Z",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "sjrjExnjsN-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 33.35866,
+    "lon": -81.97885,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [],
+      "precip7dIn": 1.62,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 66.6,
+      "windGustMph": 5.6,
+      "windGustPeakWindowHrs": 3
+    }
+  },
+  "ugdsEbqqdO-None": {
+    "cause": "Unknown",
+    "county": "Murray County",
+    "customers": 4,
+    "estRestore": "ETR-NULL",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "ugdsEbqqdO-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 34.76107,
+    "lon": -84.80034,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [],
+      "precip7dIn": 0.59,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 67.8,
+      "windGustMph": 11.2,
+      "windGustPeakWindowHrs": 3
+    }
+  },
   "yuu}DdzevN-None": {
     "cause": "Unknown",
     "county": "Ware County",
@@ -270,9 +420,9 @@
     "lat": 31.24589,
     "lon": -82.44659,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [],
@@ -295,9 +445,9 @@
     "lat": 34.24765,
     "lon": -83.57792,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [],
@@ -320,9 +470,9 @@
     "lat": 33.76734,
     "lon": -84.22586,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [
@@ -347,9 +497,9 @@
     "lat": 31.47374,
     "lon": -83.6519,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [],
@@ -358,6 +508,58 @@
       "precipIn": 0.0,
       "tempF": 78.0,
       "windGustMph": 5.1,
+      "windGustPeakWindowHrs": 3
+    }
+  },
+  "{g|lEzgdaO-None": {
+    "cause": "Unknown",
+    "county": "DeKalb County",
+    "customers": 4,
+    "estRestore": "ETR-NULL",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "{g|lEzgdaO-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 33.7371,
+    "lon": -84.24078,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [
+        "Air Quality Alert"
+      ],
+      "precip7dIn": 1.89,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 67.1,
+      "windGustMph": 6.9,
+      "windGustPeakWindowHrs": 3
+    }
+  },
+  "}bxcEhdc~N-None": {
+    "cause": "Unknown",
+    "county": "Dooly County",
+    "customers": 938,
+    "estRestore": "2026-10-15T07:30:00Z",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "}bxcEhdc~N-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 32.24127,
+    "lon": -83.74357,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [],
+      "precip7dIn": 2.59,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 63.9,
+      "windGustMph": 6.5,
       "windGustPeakWindowHrs": 3
     }
   },
@@ -372,9 +574,9 @@
     "lat": 33.72127,
     "lon": -84.28239,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [
@@ -399,9 +601,9 @@
     "lat": 34.28543,
     "lon": -83.83932,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [
@@ -412,6 +614,58 @@
       "precipIn": 0.0,
       "tempF": 76.1,
       "windGustMph": 3.8,
+      "windGustPeakWindowHrs": 3
+    }
+  },
+  "}qugErvd~N-None": {
+    "cause": "Unknown",
+    "county": "Bibb County",
+    "customers": 4,
+    "estRestore": "2026-10-15T08:00:00Z",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "}qugErvd~N-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 32.88367,
+    "lon": -83.75162,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [],
+      "precip7dIn": 0.65,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 63.6,
+      "windGustMph": 7.2,
+      "windGustPeakWindowHrs": 3
+    }
+  },
+  "}tmpEhxj`O-None": {
+    "cause": "Unknown",
+    "county": "Forsyth County",
+    "customers": 4,
+    "estRestore": "2026-10-15T07:15:00Z",
+    "firstSeen": "2026-10-15T05:09:38.972353+00:00",
+    "id": "}tmpEhxj`O-None",
+    "lastSeen": "2026-10-15T05:09:38.972353+00:00",
+    "lat": 34.31775,
+    "lon": -84.11029,
+    "outageType": "",
+    "resolvedAt": null,
+    "startDate": "2026-10-15T05:09:38.972353+00:00",
+    "status": "Active",
+    "utility": "Georgia Power",
+    "weather": {
+      "alerts": [
+        "Air Quality Alert"
+      ],
+      "precip7dIn": 1.0,
+      "precip7dWindowHrs": 168,
+      "precipIn": 0.0,
+      "tempF": 65.7,
+      "windGustMph": 5.4,
       "windGustPeakWindowHrs": 3
     }
   },
@@ -426,9 +680,9 @@
     "lat": 33.57071,
     "lon": -83.17653,
     "outageType": "",
-    "resolvedAt": null,
+    "resolvedAt": "2026-10-15T05:09:38.972353+00:00",
     "startDate": "2026-10-15T00:38:54.981301+00:00",
-    "status": "Active",
+    "status": "Restored",
     "utility": "Georgia Power",
     "weather": {
       "alerts": [],
